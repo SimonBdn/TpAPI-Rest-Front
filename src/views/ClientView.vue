@@ -1,51 +1,21 @@
-<template>
-  <main>
-    <h1>Les clients</h1> <br>
-    <div>
-      <table>
-        <caption>Liste des clients</caption>
-        <tr>
-          <th>Code</th>
-          <th>Societe</th>
-          <th>Contact</th>
-          <th>Fonction</th>
-        </tr>
-        <!-- Si le tableau des catégories est vide -->
-        <tr v-if="data.listeClients.length === 0">
-          <td colspan="4">Veuillez patienter, chargement des clients...</td>
-        </tr>
-        <!-- Si le tableau des catégories n'est pas vide -->
-        <tr v-for="clients in data.listeClients" :key="clients.code">
-          <td>{{ clients.code }}</td>
-          <td>{{ clients.societe }}</td>
-          <td>{{ clients.contact }}</td>
-          <td>{{ clients.fonction }}</td>
-          <td>
-            <button @click="deleteEntity(clients._links.self.href)">
-              Supprimer
-            </button>
-          </td>
-        </tr>
-      </table>
-    </div>
-  </main>
-</template>
-
 <script setup>
-import { reactive, onMounted } from "vue";
-import { doAjaxRequest } from "@/api";
+import {onMounted, reactive} from "vue";
+import {doAjaxRequest} from "@/api";
 
 // Pour réinitialiser le formulaire
-const categorieVide = {
+const clientsVide = {
   libelle: "",
   description: ""
 };
 
+const page = 0;
+
 let data = reactive({
   // Les données saisies dans le formulaire
-  formulaireCategorie: { ...categorieVide },
+  formulaireCategorie: {...clientsVide},
   // La liste des catégories affichée sous forme de table
-  listeClients: []
+  listeCategories: [],
+  listeLinks: []
 });
 
 function showError(error) {
@@ -53,52 +23,89 @@ function showError(error) {
   console.log(error.body);
   alert(error.message);
 }
-
-function chargeClients() {
+function chargeCategorieswithUrl(urlPage) {
   // Appel à l'API pour avoir la liste des catégories
   // Trié par code, descendant
   // Verbe HTTP GET par défaut
-  doAjaxRequest("/api/clients?page=0&size=5")
+  urlPage = urlPage.substring(urlPage.indexOf("/api"));
+  doAjaxRequest(urlPage)
       .then((json) => {
-        data.listeClients = json._embedded.clients;
+        data.listeCategories = json._embedded.clients;
+        data.listeLinks = json._links;
+        console.log(data.listeLinks);
       })
       .catch(showError);
 }
+/*
+function chargeCategories() {
+  // Appel à l'API pour avoir la liste des catégories
+  // Trié par code, descendant
+  // Verbe HTTP GET par défaut
+  doAjaxRequest("/api/clients?&page=" + page + "&size=5")
+      .then((json) => {
+        data.listeCategories = json._embedded.clients;
+        data.listeLinks = json._links
+        console.log(data.listeLinks)
+      })
+      .catch(showError);
+}
+*/
 
-function ajouteClients() {
-  // Ajouter un client avec les données du formulaire
-  const options = {
-    method: "POST", // Verbe HTTP POST pour ajouter un enregistrement
-    body: JSON.stringify(data.formulaireClients),
-    headers: {
-      "Content-Type": "application/json",
-      "Accept": "application/json"
-    },
-  };
-  doAjaxRequest("/api/clients", options)
-      .then(() => {
-        // Réinitialiser le formulaire
-        data.formulaireCategorie = { ...categorieVide };
-        // Recharger la liste des catégories
-        chargeClients();
-      })
-      .catch(showError);
-}
+
 /**
  * Supprime une entité
  * @param entityRef l'URI de l'entité à supprimer
  */
-function deleteEntity(entityRef) {
-  doAjaxRequest(entityRef, { method: "DELETE", headers: { "Accept": "application/json" }})
-      .then(chargeClients)
-      .catch(showError);
-}
 
 // A l'affichage du composant, on affiche la liste
-onMounted(chargeClients);
+onMounted(() => {
+  chargeCategorieswithUrl("/api/clients?&page=0&size=5");
+})
+
 
 </script>
 
+<template>
+  <div>
+    <table>
+      <caption>Liste des catégories</caption>
+      <tr>
+        <th>Code</th>
+        <th>Société</th>
+        <th>Contact</th>
+        <th>Ville</th>
+      </tr>
+      <!-- Si le tableau des catégories est vide -->
+      <tr v-if="data.listeCategories.length === 0">
+        <td colspan="4">Veuillez patienter, chargement des catégories...</td>
+      </tr>
+      <!-- Si le tableau des catégories n'est pas vide -->
+      <tr v-for="categorie in data.listeCategories" :key="categorie.code">
+        <td>{{ categorie.code }}</td>
+        <td>{{ categorie.societe }}</td>
+        <td>{{ categorie.contact }}</td>
+        <td>{{ categorie.adresse.ville }}</td>
+      </tr>
+      <tr>
+        <td>
+          <button type="number" @click="chargeCategorieswithUrl(data.listeLinks.first.href)">first</button>
+        </td>
+        <td>
+          <button v-if="typeof data.listeLinks.prev !== 'undefined'" type="number" @click="chargeCategorieswithUrl(
+              data.listeLinks.prev.href)">prev</button>
+        </td>
+        <td>
+          <button v-if="typeof data.listeLinks.next !== 'undefined'" type="number" @click="chargeCategorieswithUrl(
+              data.listeLinks.next.href)">next</button>
+        </td>
+        <td>
+          <button type="number" @click="chargeCategorieswithUrl(data.listeLinks.last.href)">last</button>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+</template>
 
 <style scoped>
 td,
